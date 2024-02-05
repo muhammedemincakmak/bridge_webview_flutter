@@ -41,7 +41,7 @@ typedef void JavascriptMessageHandler(JavascriptMessage message);
 
 /// Information about a navigation action that is about to be executed.
 class NavigationRequest {
-  NavigationRequest._({this.url, this.isForMainFrame});
+  NavigationRequest._({required this.url, required this.isForMainFrame});
 
   /// The URL that will be loaded if the navigation is executed.
   final String url;
@@ -109,8 +109,8 @@ class JavascriptChannel {
   ///
   /// The parameters `name` and `onMessageReceived` must not be null.
   JavascriptChannel({
-    @required this.name,
-    @required this.onMessageReceived,
+    required this.name,
+    required this.onMessageReceived,
   })  : assert(name != null),
         assert(onMessageReceived != null),
         assert(_validChannelNames.hasMatch(name));
@@ -141,26 +141,26 @@ class BridgeWebView extends StatefulWidget {
   ///
   /// The `javascriptMode` and `autoMediaPlaybackPolicy` parameters must not be null.
   const BridgeWebView({
-    Key key,
-    this.onWebViewCreated,
-    this.initialUrl,
+    required Key key,
+    required this.onWebViewCreated,
+    required this.initialUrl,
     this.javascriptMode = JavascriptMode.disabled,
-    this.javascriptChannels,
-    this.navigationDelegate,
-    this.gestureRecognizers,
-    this.onPageStarted,
-    this.onPageFinished,
-    this.onWebResourceError,
+    required this.javascriptChannels,
+    required this.navigationDelegate,
+    required this.gestureRecognizers,
+    required this.onPageStarted,
+    required this.onPageFinished,
+    required this.onWebResourceError,
     this.debuggingEnabled = false,
     this.gestureNavigationEnabled = false,
-    this.userAgent,
+    required this.userAgent,
     this.initialMediaPlaybackPolicy =
         AutoMediaPlaybackPolicy.require_user_action_for_all_media_types,
   })  : assert(javascriptMode != null),
         assert(initialMediaPlaybackPolicy != null),
         super(key: key);
 
-  static WebViewPlatform _platform;
+  static late WebViewPlatform _platform;
 
   /// Sets a custom [WebViewPlatform].
   ///
@@ -337,7 +337,7 @@ class _BridgeWebViewState extends State<BridgeWebView> {
   final Completer<WebViewController> _controller =
       Completer<WebViewController>();
 
-  _PlatformCallbacksHandler _platformCallbacksHandler;
+  late _PlatformCallbacksHandler _platformCallbacksHandler;
 
   @override
   Widget build(BuildContext context) {
@@ -409,19 +409,13 @@ WebSettings _webSettingsFromWidget(BridgeWebView widget) {
 // This method assumes that no fields in `currentValue` are null.
 WebSettings _clearUnchangedWebSettings(
     WebSettings currentValue, WebSettings newValue) {
-  assert(currentValue.javascriptMode != null);
-  assert(currentValue.hasNavigationDelegate != null);
-  assert(currentValue.debuggingEnabled != null);
-  assert(currentValue.userAgent.isPresent);
-  assert(newValue.javascriptMode != null);
-  assert(newValue.hasNavigationDelegate != null);
-  assert(newValue.debuggingEnabled != null);
-  assert(newValue.userAgent.isPresent);
+  // Nullable türler kullanılarak başlangıç değerleri tanımlanıyor
+  JavascriptMode? javascriptMode;
+  bool? hasNavigationDelegate;
+  bool? debuggingEnabled;
+  WebSetting<String>? userAgent;
 
-  JavascriptMode javascriptMode;
-  bool hasNavigationDelegate;
-  bool debuggingEnabled;
-  WebSetting<String> userAgent = WebSetting<String>.absent();
+  // Değişkenlere yeni değerler atanıyor, eğer mevcut ve yeni değerler farklıysa
   if (currentValue.javascriptMode != newValue.javascriptMode) {
     javascriptMode = newValue.javascriptMode;
   }
@@ -435,13 +429,15 @@ WebSettings _clearUnchangedWebSettings(
     userAgent = newValue.userAgent;
   }
 
+  // Sonuç olarak, null kontrolü yapılarak WebSettings nesnesi oluşturuluyor
   return WebSettings(
-    javascriptMode: javascriptMode,
-    hasNavigationDelegate: hasNavigationDelegate,
-    debuggingEnabled: debuggingEnabled,
-    userAgent: userAgent,
+    javascriptMode: javascriptMode ?? currentValue.javascriptMode, // Varsayılan olarak mevcut değer kullanılıyor
+    hasNavigationDelegate: hasNavigationDelegate ?? currentValue.hasNavigationDelegate,
+    debuggingEnabled: debuggingEnabled ?? currentValue.debuggingEnabled,
+    userAgent: userAgent ?? currentValue.userAgent, gestureNavigationEnabled: false,
   );
 }
+
 
 Set<String> _extractChannelNames(Set<JavascriptChannel> channels) {
   final Set<String> channelNames = channels == null
@@ -465,13 +461,13 @@ class _PlatformCallbacksHandler implements WebViewPlatformCallbacksHandler {
 
   @override
   void onJavaScriptChannelMessage(String channel, String message) {
-    _javascriptChannels[channel].onMessageReceived(JavascriptMessage(message));
+    _javascriptChannels[channel]!.onMessageReceived(JavascriptMessage(message));
   }
 
   @override
-  FutureOr<bool> onNavigationRequest({String url, bool isForMainFrame}) async {
+  FutureOr<bool> onNavigationRequest({String? url, bool? isForMainFrame}) async {
     final NavigationRequest request =
-        NavigationRequest._(url: url, isForMainFrame: isForMainFrame);
+        NavigationRequest._(url: url!, isForMainFrame: isForMainFrame!);
     final bool allowNavigation = _widget.navigationDelegate == null ||
         await _widget.navigationDelegate(request) ==
             NavigationDecision.navigate;
@@ -527,83 +523,43 @@ class WebViewController {
 
   final _PlatformCallbacksHandler _platformCallbacksHandler;
 
-  WebSettings _settings;
+  late WebSettings _settings;
 
   BridgeWebView _widget;
 
-  /// Loads the specified URL.
-  ///
-  /// If `headers` is not null and the URL is an HTTP URL, the key value paris in `headers` will
-  /// be added as key value pairs of HTTP headers for the request.
-  ///
-  /// `url` must not be null.
-  ///
-  /// Throws an ArgumentError if `url` is not a valid URL string.
   Future<void> loadUrl(
     String url, {
-    Map<String, String> headers,
+    required Map<String, String> headers,
   }) async {
     assert(url != null);
     _validateUrlString(url);
     return _webViewPlatformController.loadUrl(url, headers);
   }
 
-  /// Accessor to the current URL that the WebView is displaying.
-  ///
-  /// If [WebView.initialUrl] was never specified, returns `null`.
-  /// Note that this operation is asynchronous, and it is possible that the
-  /// current URL changes again by the time this function returns (in other
-  /// words, by the time this future completes, the WebView may be displaying a
-  /// different URL).
   Future<String> currentUrl() {
     return _webViewPlatformController.currentUrl();
   }
 
-  /// Checks whether there's a back history item.
-  ///
-  /// Note that this operation is asynchronous, and it is possible that the "canGoBack" state has
-  /// changed by the time the future completed.
   Future<bool> canGoBack() {
     return _webViewPlatformController.canGoBack();
   }
 
-  /// Checks whether there's a forward history item.
-  ///
-  /// Note that this operation is asynchronous, and it is possible that the "canGoForward" state has
-  /// changed by the time the future completed.
   Future<bool> canGoForward() {
     return _webViewPlatformController.canGoForward();
   }
 
-  /// Goes back in the history of this WebView.
-  ///
-  /// If there is no back history item this is a no-op.
   Future<void> goBack() {
     return _webViewPlatformController.goBack();
   }
 
-  /// Goes forward in the history of this WebView.
-  ///
-  /// If there is no forward history item this is a no-op.
   Future<void> goForward() {
     return _webViewPlatformController.goForward();
   }
 
-  /// Reloads the current URL.
   Future<void> reload() {
     return _webViewPlatformController.reload();
   }
 
-  /// Clears all caches used by the [WebView].
-  ///
-  /// The following caches are cleared:
-  ///	1. Browser HTTP Cache.
-  ///	2. [Cache API](https://developers.google.com/web/fundamentals/instant-and-offline/web-storage/cache-api) caches.
-  ///    These are not yet supported in iOS WkWebView. Service workers tend to use this cache.
-  ///	3. Application cache.
-  ///	4. Local Storage.
-  ///
-  /// Note: Calling this method also triggers a reload.
   Future<void> clearCache() async {
     await _webViewPlatformController.clearCache();
     return reload();
@@ -641,22 +597,6 @@ class WebViewController {
     _platformCallbacksHandler._updateJavascriptChannelsFromSet(newChannels);
   }
 
-  /// Evaluates a JavaScript expression in the context of the current page.
-  ///
-  /// On Android returns the evaluation result as a JSON formatted string.
-  ///
-  /// On iOS depending on the value type the return value would be one of:
-  ///
-  ///  - For primitive JavaScript types: the value string formatted (e.g JavaScript 100 returns '100').
-  ///  - For JavaScript arrays of supported types: a string formatted NSArray(e.g '(1,2,3), note that the string for NSArray is formatted and might contain newlines and extra spaces.').
-  ///  - Other non-primitive types are not supported on iOS and will complete the Future with an error.
-  ///
-  /// The Future completes with an error if a JavaScript error occurred, or on iOS, if the type of the
-  /// evaluated expression is not supported as described above.
-  ///
-  /// When evaluating Javascript in a [WebView], it is best practice to wait for
-  /// the [WebView.onPageFinished] callback. This guarantees all the Javascript
-  /// embedded in the main frame HTML has been loaded.
   Future<String> evaluateJavascript(String javascriptString) {
     if (_settings.javascriptMode == JavascriptMode.disabled) {
       return Future<String>.error(FlutterError(
@@ -666,25 +606,20 @@ class WebViewController {
       return Future<String>.error(
           ArgumentError('The argument javascriptString must not be null.'));
     }
-    // TODO(amirh): remove this on when the invokeMethod update makes it to stable Flutter.
-    // https://github.com/flutter/flutter/issues/26431
-    // ignore: strong_mode_implicit_dynamic_method
+
     return _webViewPlatformController.evaluateJavascript(javascriptString);
   }
 
-  /// Returns the title of the currently loaded page.
   Future<String> getTitle() {
     return _webViewPlatformController.getTitle();
   }
 
-  // ignore: public_member_api_docs
-  Future<void> registerHandler(String name, {dynamic response, BridgeCallBack onCallBack}) {
-    return _webViewPlatformController.registerHandler(name, response: response, onCallBack: onCallBack);
+  Future<void> registerHandler(String name, {dynamic response, BridgeCallBack? onCallBack}) {
+    return _webViewPlatformController.registerHandler(name, response: response, onCallBack: onCallBack!);
   }
 
-  // ignore: public_member_api_docs
-  Future<void> callHandler(String name, {dynamic data, BridgeCallBack onCallBack}) {
-    return _webViewPlatformController.callHandler(name, data: data, onCallBack: onCallBack);
+  Future<void> callHandler(String name, {dynamic data, BridgeCallBack? onCallBack}) {
+    return _webViewPlatformController.callHandler(name, data: data, onCallBack: onCallBack!);
   }
 }
 
@@ -697,7 +632,7 @@ class CookieManager {
 
   CookieManager._();
 
-  static CookieManager _instance;
+  static late CookieManager _instance;
 
   /// Clears all cookies for all [WebView] instances.
   ///

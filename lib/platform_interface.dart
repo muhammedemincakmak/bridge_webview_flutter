@@ -116,10 +116,10 @@ class WebResourceError {
   /// A user should not need to instantiate this class, but will receive one in
   /// [WebResourceErrorCallback].
   WebResourceError({
-    @required this.errorCode,
-    @required this.description,
-    this.domain,
-    this.errorType,
+    required this.errorCode,
+    required this.description,
+    required this.domain,
+    required this.errorType,
   })  : assert(errorCode != null),
         assert(description != null);
 
@@ -293,13 +293,13 @@ abstract class WebViewPlatformController {
   }
 
   // ignore: public_member_api_docs
-  Future<void> registerHandler(String name, {dynamic response, BridgeCallBack onCallBack}) {
+  Future<void> registerHandler(String name, {dynamic response, BridgeCallBack? onCallBack}) {
     throw UnimplementedError(
         "WebView registerHandler is not implemented on the current platform");
   }
 
   // ignore: public_member_api_docs
-  Future<void> callHandler(String name, {dynamic data, BridgeCallBack onCallBack}) {
+  Future<void> callHandler(String name, {dynamic data, BridgeCallBack? onCallBack}) {
     throw UnimplementedError(
         "WebView callHandler is not implemented on the current platform");
   }
@@ -312,9 +312,8 @@ class WebSetting<T> {
   /// The [isPresent] field for the instance will be false.
   ///
   /// Accessing [value] for an absent instance will throw.
-  WebSetting.absent()
-      : _value = null,
-        isPresent = false;
+  T? myVariable;
+
 
   /// Constructs a setting of the given `value`.
   ///
@@ -343,10 +342,11 @@ class WebSetting<T> {
 
   @override
   bool operator ==(Object other) {
-    if (other.runtimeType != runtimeType) return false;
-    final WebSetting<T> typedOther = other;
+    if (other is! WebSetting<T>) return false; // `is!` kullanarak tür kontrolü
+    final WebSetting<T> typedOther = other as WebSetting<T>; // Güvenli tür dönüşümü
     return typedOther.isPresent == isPresent && typedOther._value == _value;
   }
+
 
   @override
   int get hashCode => hashValues(_value, isPresent);
@@ -364,11 +364,11 @@ class WebSettings {
   ///
   /// The `userAgent` parameter must not be null.
   WebSettings({
-    this.javascriptMode,
-    this.hasNavigationDelegate,
-    this.debuggingEnabled,
-    this.gestureNavigationEnabled,
-    @required this.userAgent,
+    required this.javascriptMode,
+    required this.hasNavigationDelegate,
+    required this.debuggingEnabled,
+    required this.gestureNavigationEnabled,
+    required this.userAgent,
   }) : assert(userAgent != null);
 
   /// The JavaScript execution mode to be used by the webview.
@@ -412,10 +412,10 @@ class CreationParams {
   ///
   /// The `autoMediaPlaybackPolicy` parameter must not be null.
   CreationParams({
-    this.initialUrl,
-    this.webSettings,
-    this.javascriptChannelNames,
-    this.userAgent,
+    required this.initialUrl,
+    required this.webSettings,
+    required this.javascriptChannelNames,
+    required this.userAgent,
     this.autoMediaPlaybackPolicy =
         AutoMediaPlaybackPolicy.require_user_action_for_all_media_types,
   }) : assert(autoMediaPlaybackPolicy != null);

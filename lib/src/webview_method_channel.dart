@@ -52,19 +52,17 @@ class MethodChannelWebViewPlatform implements WebViewPlatformController {
         );
       case 'onPageFinished':
         _platformCallbacksHandler.onPageFinished(call.arguments['url']);
-        return null;
+
       case 'onPageStarted':
         _platformCallbacksHandler.onPageStarted(call.arguments['url']);
-        return null;
+
       case 'onWebResourceError':
         _platformCallbacksHandler.onWebResourceError(
           WebResourceError(
             errorCode: call.arguments['errorCode'],
             description: call.arguments['description'],
             domain: call.arguments['domain'],
-            errorType: call.arguments['errorType'] == null
-                ? null
-                : WebResourceErrorType.values.firstWhere(
+            errorType: WebResourceErrorType.values.firstWhere(
                     (WebResourceErrorType type) {
                       return type.toString() ==
                           '$WebResourceErrorType.${call.arguments['errorType']}';
@@ -72,17 +70,16 @@ class MethodChannelWebViewPlatform implements WebViewPlatformController {
                   ),
           ),
         );
-        return null;
+
       case 'bridgeCallBack':
         Map<String, dynamic> map = jsonDecode(call.arguments);
         String name = map["name"];
-        if (name != null) {
-          BridgeCallBack callBack = _bridgeCallBackMap[name];
+
+          BridgeCallBack callBack = _bridgeCallBackMap[name]!;
           if (callBack != null) {
             callBack(BridgeData(name, map["data"]));
           }
-        }
-        return null;
+
     }
 
     throw MissingPluginException(
@@ -103,13 +100,24 @@ class MethodChannelWebViewPlatform implements WebViewPlatformController {
   }
 
   @override
-  Future<String> currentUrl() => _channel.invokeMethod<String>('currentUrl');
+  Future<String> currentUrl() async {
+    final String? url = await _channel.invokeMethod<String>('currentUrl');
+    return url ?? 'default_url'; // `null` ise varsayılan bir URL döndür
+  }
 
   @override
-  Future<bool> canGoBack() => _channel.invokeMethod<bool>("canGoBack");
+  Future<bool> canGoBack() async {
+    final bool? canGoBack = await _channel.invokeMethod<bool>('canGoBack');
+    return canGoBack ?? false; // `null` ise false döndür
+  }
+
 
   @override
-  Future<bool> canGoForward() => _channel.invokeMethod<bool>("canGoForward");
+  Future<bool> canGoForward() async {
+    final bool? canGoForward = await _channel.invokeMethod<bool>('canGoForward');
+    return canGoForward ?? false; // `null` ise false döndür
+  }
+
 
   @override
   Future<void> goBack() => _channel.invokeMethod<void>("goBack");
@@ -126,17 +134,19 @@ class MethodChannelWebViewPlatform implements WebViewPlatformController {
   @override
   Future<void> updateSettings(WebSettings settings) {
     final Map<String, dynamic> updatesMap = _webSettingsToMap(settings);
-    if (updatesMap.isEmpty) {
-      return null;
-    }
     return _channel.invokeMethod<void>('updateSettings', updatesMap);
   }
 
   @override
-  Future<String> evaluateJavascript(String javascriptString) {
-    return _channel.invokeMethod<String>(
+  Future<String> evaluateJavascript(String javascriptString) async {
+    final String? result = await _channel.invokeMethod<String>(
         'evaluateJavascript', javascriptString);
+    if (result == null) {
+      throw Exception('JavaScript evaluation returned null');
+    }
+    return result;
   }
+
 
   @override
   Future<void> addJavascriptChannels(Set<String> javascriptChannelNames) {
@@ -151,7 +161,14 @@ class MethodChannelWebViewPlatform implements WebViewPlatformController {
   }
 
   @override
-  Future<String> getTitle() => _channel.invokeMethod<String>("getTitle");
+  Future<String> getTitle() async {
+    final String? title = await _channel.invokeMethod<String>("getTitle");
+    if (title == null) {
+      throw Exception('Title is null');
+    }
+    return title;
+  }
+
 
   /// Method channel implementation for [WebViewPlatform.clearCookies].
   static Future<bool> clearCookies() {
@@ -201,7 +218,7 @@ class MethodChannelWebViewPlatform implements WebViewPlatformController {
   }
 
   @override
-  Future<void> callHandler(String name, {dynamic data, BridgeCallBack onCallBack}) {
+  Future<void> callHandler(String name, {dynamic data, BridgeCallBack? onCallBack}) {
     if (onCallBack != null) {
       _bridgeCallBackMap[name] = onCallBack;
     }
@@ -209,7 +226,7 @@ class MethodChannelWebViewPlatform implements WebViewPlatformController {
   }
 
   @override
-  Future<void> registerHandler(String name, {dynamic response, BridgeCallBack onCallBack}) {
+  Future<void> registerHandler(String name, {dynamic response, BridgeCallBack? onCallBack}) {
     if (onCallBack != null) {
       _bridgeCallBackMap[name] = onCallBack;
     }
